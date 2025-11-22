@@ -391,7 +391,7 @@
 
     <div id="locationCheck"
         style="position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                display: flex; align-items: center; justify-content: center;
+                display: none; align-items: center; justify-content: center;
                 background: #fff; font-family: Inter, sans-serif; z-index: 9999;
                 flex-direction: column; color: #333; font-size: 1.2rem;">
     <p>Checking your location...</p>
@@ -709,8 +709,38 @@
 
         document.addEventListener("DOMContentLoaded", async () => {
             overlayRef = document.getElementById("locationCheck");
+            
+            // Hide overlay and show body initially
+            if (overlayRef) {
+                overlayRef.style.display = "none";
+            }
+            document.body.style.display = "block";
+            
+            // Check if location check is enabled FIRST - before any other checks
+            let locationCheckEnabled = true;
+            try {
+                const settingsRes = await fetch("/api/settings/location-check");
+                const settingsData = await settingsRes.json();
+                if (settingsData.ok) {
+                    locationCheckEnabled = settingsData.locationCheckEnabled !== false;
+                }
+            } catch (e) {
+                console.warn("[Location] Failed to check location setting, defaulting to enabled", e);
+            }
+
+            // If location check is disabled, skip everything and allow access immediately
+            if (!locationCheckEnabled) {
+                console.log("[Location] Location check disabled - allowing access without geolocation");
+                return;
+            }
+
+            // Location check is enabled - show overlay and proceed with normal flow
+            if (overlayRef) {
+                overlayRef.style.display = "flex";
+            }
+            
             if (!navigator.geolocation) {
-                showOverlayMessage("Your device doesn’t support location access.");
+                showOverlayMessage("Your device doesn't support location access.");
                 return;
             }
 
@@ -726,26 +756,6 @@
 
             const sessionReady = await ensureSessionForCurrentTable();
             if (!sessionReady) return;
-
-            // Check if location check is enabled before requesting geolocation
-            let locationCheckEnabled = true;
-            try {
-                const settingsRes = await fetch("/api/settings", { credentials: "include" });
-                const settingsData = await settingsRes.json();
-                if (settingsData.ok && settingsData.settings) {
-                    locationCheckEnabled = settingsData.settings.locationCheckEnabled !== false;
-                }
-            } catch (e) {
-                console.warn("[Location] Failed to check location setting, defaulting to enabled");
-            }
-
-            // If location check is disabled, skip geolocation and allow access
-            if (!locationCheckEnabled) {
-                console.log("[Location] Location check disabled - allowing access without geolocation");
-                overlayRef.style.display = "none";
-                document.body.style.display = "block";
-                return;
-            }
 
             navigator.geolocation.getCurrentPosition(async (pos) => {
                 latestCoords = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
@@ -772,13 +782,13 @@
             // Check if location check is enabled
             let locationCheckEnabled = true;
             try {
-                const settingsRes = await fetch("/api/settings", { credentials: "include" });
+                const settingsRes = await fetch("/api/settings/location-check");
                 const settingsData = await settingsRes.json();
-                if (settingsData.ok && settingsData.settings) {
-                    locationCheckEnabled = settingsData.settings.locationCheckEnabled !== false;
+                if (settingsData.ok) {
+                    locationCheckEnabled = settingsData.locationCheckEnabled !== false;
                 }
             } catch (e) {
-                console.warn("[Location] Failed to check location setting, defaulting to enabled");
+                console.warn("[Location] Failed to check location setting, defaulting to enabled", e);
             }
 
             // If location check is disabled, allow order without location verification
