@@ -1047,6 +1047,24 @@ app.get("/api/orders", auth, async (req, res) => {
   res.json({ ok: true, orders });
 });
 
+// Public endpoint to get location check setting (no auth required)
+app.get("/api/settings/location-check", async (req, res) => {
+  try {
+    let locationCheckEnabled = true;
+    if (mongoDb) {
+      const doc = await mongoDb.collection("settings").findOne({ id: "main" });
+      locationCheckEnabled = doc?.locationCheckEnabled !== false;
+    } else {
+      const d = await readData();
+      locationCheckEnabled = d.settings?.locationCheckEnabled !== false;
+    }
+    res.json({ ok: true, locationCheckEnabled });
+  } catch (err) {
+    console.error("Location check setting fetch failed", err);
+    res.json({ ok: true, locationCheckEnabled: true }); // Default to enabled on error
+  }
+});
+
 app.get("/api/settings", auth, async (req, res) => {
   try {
     let settings = {};
